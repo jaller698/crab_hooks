@@ -18,7 +18,7 @@ fn find_git_repos(dir: &Path) -> Vec<PathBuf> {
 
     for entry in WalkDir::new(dir)
         .into_iter()
-        .filter_entry(|e| should_traverse(e))
+        .filter_entry(should_traverse)
         .filter_map(Result::ok)
     {
         if entry.file_type().is_dir() {
@@ -60,7 +60,7 @@ fn create_sqlite(git_repos: Vec<PathBuf>) {
 }
 
 fn main() {
-    Command::new("ls")
+    let _ = Command::new("ls")
         .arg("-a")
         .spawn()
         .expect("failed to execute command")
