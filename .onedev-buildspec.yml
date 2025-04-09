@@ -1,0 +1,144 @@
+version: 39
+jobs:
+- name: Cargo test
+  steps:
+  - !CheckoutStep
+    name: checkout
+    cloneCredential: !DefaultCredential {}
+    withLfs: false
+    withSubmodules: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !CommandStep
+    name: cargo test
+    runInContainer: true
+    image: 1dev/agent
+    interpreter: !DefaultInterpreter
+      commands: |
+        apt update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+        apt install -y libssl-dev pkg-config rustup clang
+        rustup default stable
+        echo "done with APT"
+        cargo build --release
+        cargo test
+        cargo install cargo-tarpaulin
+        cargo tarpaulin --out Html --engine llvm
+    useTTY: true
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !PublishArtifactStep
+    name: Publish
+    sourcePath: target/release
+    artifacts: '**'
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !PublishHtmlReportStep
+    name: Publish test report
+    reportName: Tests
+    filePatterns: tarpaulin-report.html
+    startPage: tarpaulin-report.html
+    condition: ALWAYS
+  triggers:
+  - !PullRequestUpdateTrigger {}
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
+  postBuildActions:
+  - !SendNotificationAction
+    condition: always
+    receivers: user(christian)
+- name: Cargo clippy
+  steps:
+  - !CheckoutStep
+    name: checkout
+    cloneCredential: !DefaultCredential {}
+    withLfs: false
+    withSubmodules: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !CommandStep
+    name: clippy
+    runInContainer: true
+    image: 1dev/agent
+    interpreter: !DefaultInterpreter
+      commands: |
+        apt update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+        apt install -y libssl-dev pkg-config rustup clang
+        rustup default stable
+        rustup component add clippy
+        cargo clippy --all-targets --all-features --message-format json>check-result.json
+    useTTY: true
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !PublishClippyReportStep
+    name: Publish clippy
+    reportName: clippy report
+    filePatterns: check-result.json
+    failThreshold: MEDIUM
+    condition: ALWAYS
+  jobDependencies:
+  - jobName: Cargo test
+    requireSuccessful: true
+    artifacts: '**'
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
+- name: Cargo audit
+  steps:
+  - !CheckoutStep
+    name: checkout
+    cloneCredential: !DefaultCredential {}
+    withLfs: false
+    withSubmodules: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !CommandStep
+    name: audit
+    runInContainer: true
+    image: 1dev/agent
+    interpreter: !DefaultInterpreter
+      commands: |
+        apt update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+        apt install -y libssl-dev pkg-config rustup clang
+        rustup default stable
+        cargo install cargo-audit --locked
+        cargo audit
+    useTTY: true
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  jobDependencies:
+  - jobName: Cargo clippy
+    requireSuccessful: true
+    artifacts: '**'
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
+- name: Cargo geiger
+  steps:
+  - !CheckoutStep
+    name: checkout
+    cloneCredential: !DefaultCredential {}
+    withLfs: false
+    withSubmodules: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !CommandStep
+    name: geiger
+    runInContainer: true
+    image: 1dev/agent
+    interpreter: !DefaultInterpreter
+      commands: |
+        apt update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+        apt install -y libssl-dev pkg-config rustup clang
+        rustup default stable
+        cargo install cargo-geiger
+        cargo geiger
+    useTTY: true
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  jobDependencies:
+  - jobName: Cargo audit
+    requireSuccessful: true
+    artifacts: '**'
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
