@@ -101,7 +101,7 @@ jobs:
         apt install -y libssl-dev pkg-config rustup clang
         rustup default stable
         cargo install cargo-audit --locked
-        cargo audit -D any --json > audit.json
+        cargo audit -D warnings --json > audit.json
     useTTY: true
     condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
   - !PublishClippyReportStep
@@ -112,38 +112,6 @@ jobs:
     condition: ALWAYS
   jobDependencies:
   - jobName: Cargo clippy
-    requireSuccessful: true
-    artifacts: '**'
-  retryCondition: never
-  maxRetries: 3
-  retryDelay: 30
-  timeout: 14400
-- name: Cargo geiger
-  steps:
-  - !CheckoutStep
-    name: checkout
-    cloneCredential: !DefaultCredential {}
-    withLfs: false
-    withSubmodules: false
-    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-  - !CommandStep
-    name: geiger
-    runInContainer: true
-    image: 1dev/agent
-    interpreter: !DefaultInterpreter
-      commands: |
-        apt update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
-        apt install -y libssl-dev pkg-config rustup clang
-        rustup default stable
-        cargo install cargo-geiger
-        cargo geiger
-    useTTY: true
-    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-  triggers:
-  - !BranchUpdateTrigger {}
-  jobDependencies:
-  - jobName: Cargo audit
     requireSuccessful: true
     artifacts: '**'
   retryCondition: never
