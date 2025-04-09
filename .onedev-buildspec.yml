@@ -101,9 +101,15 @@ jobs:
         apt install -y libssl-dev pkg-config rustup clang
         rustup default stable
         cargo install cargo-audit --locked
-        cargo audit
+        cargo audit -D any --json > audit.json
     useTTY: true
     condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !PublishClippyReportStep
+    name: Publish audit report
+    reportName: audit report
+    filePatterns: audit.json
+    failThreshold: MEDIUM
+    condition: ALWAYS
   jobDependencies:
   - jobName: Cargo clippy
     requireSuccessful: true
