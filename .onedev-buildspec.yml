@@ -134,6 +134,8 @@ jobs:
         cargo geiger
     useTTY: true
     condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  triggers:
+  - !BranchUpdateTrigger {}
   jobDependencies:
   - jobName: Cargo audit
     requireSuccessful: true
