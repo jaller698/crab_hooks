@@ -1,0 +1,8 @@
+[package]
+name = "rusty_hooker"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sqlite = "0.37.0"
+walkdir = "2.5.0"
