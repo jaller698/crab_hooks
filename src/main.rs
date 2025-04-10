@@ -31,7 +31,7 @@ fn find_git_repos(dir: &Path) -> Vec<PathBuf> {
     repos
 }
 
-fn create_sqlite(git_repos: Vec<PathBuf>) {
+fn create_sqlite(mut git_repos: Vec<PathBuf>) {
     let connection = sqlite::open("mydatabase.db").unwrap();
 
     // Use "CREATE TABLE IF NOT EXISTS" to avoid errors if the table already exists.
@@ -40,9 +40,13 @@ fn create_sqlite(git_repos: Vec<PathBuf>) {
             name TEXT UNIQUE,
             managed INTEGER
         );
+        CREATE TABLE IF NOT EXISTS git_hooks (
+            name TEXT UNIQUE,
+            managed INTEGER
+        );
     ";
     connection.execute(query).unwrap();
-    for repo in git_repos {
+    for repo in &git_repos {
         let query = "INSERT OR IGNORE INTO git_repos (name, managed) VALUES (?, 0)";
         let mut statement = connection.prepare(query).unwrap();
         statement
@@ -54,14 +58,36 @@ fn create_sqlite(git_repos: Vec<PathBuf>) {
     let query = "SELECT * FROM git_repos";
     let mut statement = connection.prepare(query).unwrap();
     while let Ok(State::Row) = statement.next() {
-        println!("name = {}", statement.read::<String, _>("name").unwrap());
-        println!("enabled = {}", statement.read::<i64, _>("managed").unwrap());
+        // Read the name once and store it in a local variable.
+        let name: String = statement.read("name").unwrap();
+
+        // Look for the first git_repos element that matches the name.
+        if let Some(index) = git_repos
+            .iter()
+            .position(|value| value.display().to_string() == name)
+        {
+            git_repos.remove(index);
+        }
+        println!("name = {}", name);
+
+        // Read the 'managed' field and print it.
+        let managed: i64 = statement.read("managed").unwrap();
+        println!("enabled = {}", managed);
+    }
+
+    for repo in git_repos {
+        let query = "DELETE FROM git_repos WHERE name = ?";
+        let mut statement = connection.prepare(query).unwrap();
+        statement
+            .bind((1, repo.display().to_string().as_str()))
+            .unwrap();
+        statement.next().unwrap();
     }
 }
 
 fn main() {
     let _ = Command::new("ls")
-        .arg("-a")
+        .arg("-al")
         .spawn()
         .expect("failed to execute command")
         .wait();

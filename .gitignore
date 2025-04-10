@@ -1,3 +1,4 @@
 /target
 mydatabase.db
 Cargo.lock
+.termdbms
