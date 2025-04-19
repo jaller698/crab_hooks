@@ -1,6 +1,5 @@
 use clap::{Parser, Subcommand};
-use rusty_hooker::{git_hook::GitHook, yml_parser};
-use std::path::PathBuf;
+use rusty_hooker::{git_hook::GitHook, hook_types::HookTypes, yml_parser};
 
 #[derive(Parser)]
 #[command(name = "githook-manager")]
@@ -25,7 +24,7 @@ enum Commands {
     ApplyHook {
         hook_name: String,
         #[arg(required = true)]
-        repos: Vec<PathBuf>,
+        hook_type: HookTypes,
     },
     /// Test if the config is valid
     Test,
@@ -44,8 +43,11 @@ fn main() {
             yml_parser::display_hooks();
             ()
         }
-        Commands::ApplyHook { hook_name, repos } => {
-            println!("Apply hook {} in {:?}", hook_name, repos)
+        Commands::ApplyHook {
+            hook_name,
+            hook_type,
+        } => {
+            println!("Apply hook {} as {}", hook_name, hook_type)
         }
         Commands::Test => println!("Test"),
         Commands::Run { hook_name } => {
