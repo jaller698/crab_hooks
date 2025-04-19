@@ -110,6 +110,8 @@ jobs:
     filePatterns: audit.json
     failThreshold: MEDIUM
     condition: ALWAYS
+  triggers:
+  - !BranchUpdateTrigger {}
   jobDependencies:
   - jobName: Cargo clippy
     requireSuccessful: true
