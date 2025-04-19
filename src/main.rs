@@ -1,104 +1,53 @@
-use sqlite::State;
-use std::{
-    path::{Path, PathBuf},
-    process::Command,
-};
-use walkdir::{DirEntry, WalkDir};
+use clap::{Parser, Subcommand};
+use rusty_hooker::yml_parser;
+use std::path::PathBuf;
 
-fn should_traverse(entry: &DirEntry) -> bool {
-    // List of directory names to ignore
-    let ignore_list = [".local", ".cache"];
-    // Check if the entry's file name is in the ignore list.
-    // We use `to_string_lossy()` because file names may not be valid UTF-8.
-    !ignore_list.contains(&entry.file_name().to_string_lossy().as_ref())
+#[derive(Parser)]
+#[command(name = "githook-manager")]
+#[command(about = "Manage and reuse Git hooks across repositories", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
 }
 
-fn find_git_repos(dir: &Path) -> Vec<PathBuf> {
-    let mut repos = Vec::new();
+#[derive(Subcommand)]
+enum Commands {
+    ///// Scan for Git repositories
+    // Scan {
+    //     #[arg(default_value = "~")]
+    //     dir: String,
+    // },
+    /// List all managed repositories
+    ListRepos,
+    /// List hooks in a given repository
+    ListHooks,
+    /// Apply a hook to one or more repositories
+    ApplyHook {
+        hook_name: String,
+        #[arg(required = true)]
+        repos: Vec<PathBuf>,
+    },
+    /// Test if the config is valid
+    Test,
 
-    for entry in WalkDir::new(dir)
-        .into_iter()
-        .filter_entry(should_traverse)
-        .filter_map(Result::ok)
-    {
-        if entry.file_type().is_dir() {
-            let path = entry.path();
-            if path.join(".git").is_dir() {
-                repos.push(path.to_path_buf());
-            }
-        }
-    }
-    repos
-}
-
-fn create_sqlite(mut git_repos: Vec<PathBuf>) {
-    let connection = sqlite::open("mydatabase.db").unwrap();
-
-    // Use "CREATE TABLE IF NOT EXISTS" to avoid errors if the table already exists.
-    let query = "
-        CREATE TABLE IF NOT EXISTS git_repos (
-            name TEXT UNIQUE,
-            managed INTEGER
-        );
-        CREATE TABLE IF NOT EXISTS git_hooks (
-            name TEXT UNIQUE,
-            managed INTEGER
-        );
-    ";
-    connection.execute(query).unwrap();
-    for repo in &git_repos {
-        let query = "INSERT OR IGNORE INTO git_repos (name, managed) VALUES (?, 0)";
-        let mut statement = connection.prepare(query).unwrap();
-        statement
-            .bind((1, repo.display().to_string().as_str()))
-            .unwrap();
-        statement.next().unwrap();
-    }
-
-    let query = "SELECT * FROM git_repos";
-    let mut statement = connection.prepare(query).unwrap();
-    while let Ok(State::Row) = statement.next() {
-        // Read the name once and store it in a local variable.
-        let name: String = statement.read("name").unwrap();
-
-        // Look for the first git_repos element that matches the name.
-        if let Some(index) = git_repos
-            .iter()
-            .position(|value| value.display().to_string() == name)
-        {
-            git_repos.remove(index);
-        }
-        println!("name = {}", name);
-
-        // Read the 'managed' field and print it.
-        let managed: i64 = statement.read("managed").unwrap();
-        println!("enabled = {}", managed);
-    }
-
-    for repo in git_repos {
-        let query = "DELETE FROM git_repos WHERE name = ?";
-        let mut statement = connection.prepare(query).unwrap();
-        statement
-            .bind((1, repo.display().to_string().as_str()))
-            .unwrap();
-        statement.next().unwrap();
-    }
+    /// Run a hook in the current repo
+    Run { hook_name: String },
 }
 
 fn main() {
-    let _ = Command::new("ls")
-        .arg("-al")
-        .spawn()
-        .expect("failed to execute command")
-        .wait();
+    let cli = Cli::parse();
 
-    // Replace this with the user directory you want to scan,
-    // for example, using the HOME environment variable:
-    let home_dir = std::env::var("HOME").expect("Could not get HOME directory");
-    let home_path = Path::new(&home_dir);
-
-    let git_repos = find_git_repos(home_path);
-    // Output the number of repositories found and list their paths
-    println!("Found {} Git repositories:", git_repos.len());
-    create_sqlite(git_repos);
+    match &cli.command {
+        // Commands::Scan { dir } => println!("Scan"),
+        Commands::ListRepos => println!("List repos"),
+        Commands::ListHooks => {
+            yml_parser::display_hooks();
+            ()
+        }
+        Commands::ApplyHook { hook_name, repos } => {
+            println!("Apply hook {} in {:?}", hook_name, repos)
+        }
+        Commands::Test => println!("Test"),
+        Commands::Run { hook_name } => println!("Running {}", hook_name),
+    }
 }

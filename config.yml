@@ -1,0 +1,10 @@
+
+- name:        "hejsa"
+  description: "Some long text"
+  path:        "./script.sh"
+  glob_pattern: ["**.py", "*.json"]
+
+- name:        "foo"
+  path:        "./do_something.sh"
+  glob_pattern: ["**.rs"]
+
