@@ -1,6 +1,6 @@
 use crate::git_hook::GitHook;
 
-fn read_file() -> Result<Vec<GitHook>, Box<dyn std::error::Error>> {
+pub fn read_file() -> Result<Vec<GitHook>, Box<dyn std::error::Error>> {
     const CONFIG_FILE: &str = "./config.yml";
     let f = std::fs::File::open(CONFIG_FILE)?;
     let hooks: Vec<GitHook> = serde_yaml::from_reader(f)?;

@@ -1,10 +1,14 @@
 
 - name:        "hejsa"
   description: "Some long text"
-  path:        "./script.sh"
+  command:
+    cmd: "ls"
+    args: "-al"
+    directory: "../"
   glob_pattern: ["**.py", "*.json"]
 
 - name:        "foo"
-  path:        "./do_something.sh"
+  command:
+    cmd: "./do-something.sh"
   glob_pattern: ["**.rs"]
 

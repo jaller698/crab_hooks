@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use rusty_hooker::yml_parser;
+use rusty_hooker::{git_hook::GitHook, yml_parser};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -48,6 +48,16 @@ fn main() {
             println!("Apply hook {} in {:?}", hook_name, repos)
         }
         Commands::Test => println!("Test"),
-        Commands::Run { hook_name } => println!("Running {}", hook_name),
+        Commands::Run { hook_name } => {
+            let hooks = match yml_parser::read_file() {
+                Ok(hooks) => hooks,
+                Err(_) => Vec::<GitHook>::new(),
+            };
+            for hook in hooks {
+                if hook.name == *hook_name {
+                    hook.run().expect("Failed to run git hook");
+                };
+            }
+        }
     }
 }
