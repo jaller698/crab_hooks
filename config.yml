@@ -4,7 +4,7 @@
   command:
     cmd: "cargo"
     args: "check"
-    directory: "../"
+    directory: "./"
   glob_pattern: ["**.py", "*.json"]
 
 - name:        "foo"
