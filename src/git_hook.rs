@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, process::Command};
+use std::{fs, io::Write, path::PathBuf, process::Command};
+
+use crate::hook_types::HookTypes;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CommandConfig {
@@ -42,6 +44,30 @@ impl GitHook {
         cmd.spawn()
             .unwrap_or_else(|_| panic!("Failed to execute {:?}", self.command.cmd))
             .wait()?;
+        Ok(())
+    }
+
+    pub fn apply_hook(&self, hook_type: &HookTypes) -> Result<(), Box<dyn std::error::Error>> {
+        println!("Apply hook {} as {}", self.name, hook_type);
+
+        // First check if the current directory is a git repo
+        fs::read_dir("./.git/")?;
+        // Then check the current hook types is not already made (for now just both un-managed and
+        // managed)
+        // TODO: This file path should instead use the git config core.hooksPath
+        let file_path = format!("./.git/hooks/{}", hook_type);
+        match fs::read(&file_path) {
+            Ok(_) => {
+                return Err("Failed to apply hook, the selected hook type already exists".into());
+            }
+            Err(_) => (),
+        }
+
+        let mut hook_file = fs::File::create(&file_path)?;
+        let exe_location = std::env::current_exe()?;
+        let file_content = format!("{} run {}", exe_location.to_str().expect(""), self.name);
+        hook_file.write_all(file_content.as_bytes())?;
+
         Ok(())
     }
 }

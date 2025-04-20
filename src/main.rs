@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use rusty_hooker::{hook_types::HookTypes, yml_parser};
+use rusty_hooker::{git_hook::GitHook, hook_types::HookTypes, yml_parser};
 
 #[derive(Parser)]
 #[command(name = "githook-manager")]
@@ -33,6 +33,16 @@ enum Commands {
     Run { hook_name: String },
 }
 
+fn find_hook(name: &String) -> Result<GitHook, Box<dyn std::error::Error>> {
+    let hooks = yml_parser::read_file().unwrap_or_default();
+    for hook in hooks {
+        if hook.name == *name {
+            return Ok(hook);
+        };
+    }
+    Err("No such hook found, please add it to the config".into())
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -46,16 +56,15 @@ fn main() {
             hook_name,
             hook_type,
         } => {
-            println!("Apply hook {} as {}", hook_name, hook_type)
+            find_hook(hook_name)
+                .expect("Failed to find the hook")
+                .apply_hook(hook_type)
+                .expect("Failed to apply hook");
         }
         Commands::Test => println!("Test"),
         Commands::Run { hook_name } => {
-            let hooks = yml_parser::read_file().unwrap_or_default();
-            for hook in hooks {
-                if hook.name == *hook_name {
-                    hook.run().expect("Failed to run git hook");
-                };
-            }
+            let hook = find_hook(hook_name).expect("Faile to find hook");
+            hook.run().expect("Failed to run git hook");
         }
     }
 }
