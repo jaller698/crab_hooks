@@ -1,7 +1,7 @@
 // Documentation: https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks
 use strum_macros::{Display, EnumString};
 
-#[derive(Display, Clone, EnumString)]
+#[derive(Display, Clone, EnumString, Debug, PartialEq, Eq)]
 #[strum(serialize_all = "kebab-case")]
 pub enum HookTypes {
     PreCommit,
