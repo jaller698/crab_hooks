@@ -53,15 +53,15 @@ impl GitHook {
             .wait()?;
         if status.success() {
             // exit code was zero
-            return Ok(());
+            Ok(())
         } else {
             // non‐zero or signal‐terminated
-            return match status.code() {
+            match status.code() {
                 // exited with some code != 0
                 Some(code) => Err(format!("Command failed with status {}", code).into()),
                 // e.g. killed by signal on Unix
                 None => Err("Cmd terminated by signal".into()),
-            };
+            }
         }
     }
 
@@ -74,11 +74,8 @@ impl GitHook {
         // managed)
         // TODO: This file path should instead use the git config core.hooksPath
         let file_path = format!("./.git/hooks/{}", hook_type);
-        match fs::read(&file_path) {
-            Ok(_) => {
-                return Err("Failed to apply hook, the selected hook type already exists".into());
-            }
-            Err(_) => (),
+        if fs::read(&file_path).is_ok() {
+            return Err("Failed to apply hook, the selected hook type already exists".into());
         }
 
         let mut hook_file = fs::File::create(&file_path)?;
