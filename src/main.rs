@@ -46,7 +46,7 @@ fn find_hook(name: &String) -> Result<GitHook, Box<dyn std::error::Error>> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    let sqlConfig = sqllite::SqlLiteConfig::new("mydb.db")?;
+    let sql_config = sqllite::SqlLiteConfig::new("mydb.db")?;
 
     match &cli.command {
         // Commands::Scan { dir } => println!("Scan"),
@@ -60,12 +60,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } => {
             return find_hook(hook_name)
                 .expect("Failed to find the hook")
-                .apply_hook(hook_type, &sqlConfig);
+                .apply_hook(hook_type, &sql_config);
         }
         Commands::Test => println!("Test"),
         Commands::Run { hook_name } => {
             let hook = find_hook(hook_name).expect("Failed to find hook");
-            return hook.run(&sqlConfig);
+            return hook.run(&sql_config);
         }
     }
     Ok(())

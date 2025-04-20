@@ -2,7 +2,7 @@ use git2::{Repository, StatusOptions};
 use globset::GlobBuilder;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{self, set_permissions},
+    fs::{self, set_permissions, OpenOptions},
     io::Write,
     os::unix::fs::PermissionsExt,
     path::PathBuf,
@@ -94,7 +94,7 @@ impl GitHook {
         false
     }
 
-    pub fn run(&self, sqlConfig: &SqlLiteConfig) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn run(&self, sql_config: &SqlLiteConfig) -> Result<(), Box<dyn std::error::Error>> {
         if !self.check_files_match_glob() {
             println!("Pattern does not match the glob provided, skipping this!");
             return Ok(());
@@ -113,11 +113,11 @@ impl GitHook {
             .wait()?;
         if status.success() {
             // exit code was zero
-            sqlConfig.add_successful_run(&self.name)?;
+            sql_config.add_successful_run(&self.name)?;
             Ok(())
         } else {
             // non‐zero or signal‐terminated
-            sqlConfig.add_failed_run(&self.name)?;
+            sql_config.add_failed_run(&self.name)?;
             match status.code() {
                 // exited with some code != 0
                 Some(code) => Err(format!("Command failed with status {}", code).into()),
@@ -130,33 +130,77 @@ impl GitHook {
     pub fn apply_hook(
         &self,
         hook_type: &HookTypes,
-        sqlConfig: &SqlLiteConfig,
+        sql_config: &SqlLiteConfig,
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Apply hook {} as {}", self.name, hook_type);
+        let cd = std::env::current_dir()?
+            .to_str()
+            .expect("Failed to get current dir")
+            .to_string();
 
         // First check if the current directory is a git repo
         fs::read_dir("./.git/")?;
 
-        // Check if there is already a managed git hook
+        // Check if there is already a git hook
+        let mut already_managed = false;
 
         let file_path = format!("./.git/hooks/{}", hook_type);
-        if fs::read(&file_path).is_ok() {
-            return Err("Failed to apply hook, the selected hook type already exists".into());
+        match sql_config.check_if_new_hook_is_known(&cd, hook_type) {
+            Ok(true) => match sql_config.check_if_new_hook_is_same(&cd, hook_type, &self.name) {
+                Ok(false) => {
+                    println!("There is already a existing managed git hook, will try to truncate exisiting config");
+                    already_managed = true;
+                }
+                Ok(true) => {
+                    return Err(
+                        "Git hooks is already setup for this repo with this type, aborting".into(),
+                    );
+                }
+                Err(e) => {
+                    return Err(format!(
+                        "Failed to check for pre exisiting similar hooks, error: {}",
+                        e
+                    )
+                    .into());
+                }
+            },
+            Ok(false) => {
+                if fs::read(&file_path).is_ok() {
+                    return Err(
+                        "Failed to apply hook, the selected hook type already exists, and may not be managed".into(),
+                    );
+                }
+            }
+            Err(e) => {
+                return Err(
+                    format!("Failed to check for pre exisiting hooks, error: {}", e).into(),
+                );
+            }
         }
 
-        let mut hook_file = fs::File::create(&file_path)?;
         let exe_location = std::env::current_exe()?;
         let file_content = format!("{} run {}", exe_location.to_str().expect(""), self.name);
-        writeln!(hook_file, "#!/usr/bin/env sh")?;
-        writeln!(hook_file, "{}", file_content)?;
-        drop(hook_file);
+        if !already_managed {
+            let mut hook_file = fs::File::create(&file_path)?;
+            writeln!(hook_file, "#!/usr/bin/env sh")?;
+            writeln!(hook_file, "set -e")?;
+            writeln!(hook_file, "{}", file_content)?;
+            drop(hook_file);
 
-        let mut permissions = fs::metadata(&file_path)?.permissions();
+            let mut permissions = fs::metadata(&file_path)?.permissions();
+            permissions.set_mode(0o755);
+            set_permissions(file_path, permissions)?;
+        } else {
+            let mut hook_file = OpenOptions::new()
+                .write(true)
+                .append(true)
+                .open(file_path)?;
+            writeln!(hook_file, "{}", file_content)?;
+            drop(hook_file);
+        }
 
-        permissions.set_mode(0o755);
-
-        set_permissions(file_path, permissions)?;
-        sqlConfig.add_hook(&self.name)?;
+        sql_config.add_hook(&self.name)?;
+        sql_config.add_hook_to_repo(&self.name, &cd, hook_type)?;
 
         Ok(())
     }
