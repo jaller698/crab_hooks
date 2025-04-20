@@ -2,8 +2,8 @@
 - name:        "hejsa"
   description: "Some long text"
   command:
-    cmd: "ls"
-    args: "-al"
+    cmd: "cargo"
+    args: "check"
     directory: "../"
   glob_pattern: ["**.py", "*.json"]
 
