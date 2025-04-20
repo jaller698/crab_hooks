@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use rusty_hooker::{git_hook::GitHook, hook_types::HookTypes, yml_parser};
+use rusty_hooker::{git_hook::GitHook, hook_types::HookTypes, sqllite, yml_parser};
 
 #[derive(Parser)]
 #[command(name = "githook-manager")]
@@ -46,6 +46,8 @@ fn find_hook(name: &String) -> Result<GitHook, Box<dyn std::error::Error>> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
+    let sqlConfig = sqllite::SqlLiteConfig::new("mydb.db")?;
+
     match &cli.command {
         // Commands::Scan { dir } => println!("Scan"),
         Commands::ListRepos => println!("List repos"),
@@ -58,12 +60,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } => {
             return find_hook(hook_name)
                 .expect("Failed to find the hook")
-                .apply_hook(hook_type);
+                .apply_hook(hook_type, &sqlConfig);
         }
         Commands::Test => println!("Test"),
         Commands::Run { hook_name } => {
             let hook = find_hook(hook_name).expect("Failed to find hook");
-            return hook.run();
+            return hook.run(&sqlConfig);
         }
     }
     Ok(())

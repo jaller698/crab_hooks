@@ -9,7 +9,7 @@ use std::{
     process::Command,
 };
 
-use crate::hook_types::HookTypes;
+use crate::{hook_types::HookTypes, sqllite::SqlLiteConfig};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CommandConfig {
@@ -94,7 +94,7 @@ impl GitHook {
         false
     }
 
-    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn run(&self, sqlConfig: &SqlLiteConfig) -> Result<(), Box<dyn std::error::Error>> {
         if !self.check_files_match_glob() {
             println!("Pattern does not match the glob provided, skipping this!");
             return Ok(());
@@ -113,9 +113,11 @@ impl GitHook {
             .wait()?;
         if status.success() {
             // exit code was zero
+            sqlConfig.add_successful_run(&self.name)?;
             Ok(())
         } else {
             // non‐zero or signal‐terminated
+            sqlConfig.add_failed_run(&self.name)?;
             match status.code() {
                 // exited with some code != 0
                 Some(code) => Err(format!("Command failed with status {}", code).into()),
@@ -125,14 +127,18 @@ impl GitHook {
         }
     }
 
-    pub fn apply_hook(&self, hook_type: &HookTypes) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn apply_hook(
+        &self,
+        hook_type: &HookTypes,
+        sqlConfig: &SqlLiteConfig,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         println!("Apply hook {} as {}", self.name, hook_type);
 
         // First check if the current directory is a git repo
         fs::read_dir("./.git/")?;
-        // Then check the current hook types is not already made (for now just both un-managed and
-        // managed)
-        // TODO: This file path should instead use the git config core.hooksPath
+
+        // Check if there is already a managed git hook
+
         let file_path = format!("./.git/hooks/{}", hook_type);
         if fs::read(&file_path).is_ok() {
             return Err("Failed to apply hook, the selected hook type already exists".into());
@@ -150,6 +156,7 @@ impl GitHook {
         permissions.set_mode(0o755);
 
         set_permissions(file_path, permissions)?;
+        sqlConfig.add_hook(&self.name)?;
 
         Ok(())
     }
