@@ -1,5 +1,11 @@
 use serde::{Deserialize, Serialize};
-use std::{fs, io::Write, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
+use std::{
+    fs::{self, set_permissions},
+    io::Write,
+    os::unix::fs::PermissionsExt,
+    path::PathBuf,
+    process::Command,
+};
 
 use crate::hook_types::HookTypes;
 
@@ -73,6 +79,8 @@ impl GitHook {
         let mut permissions = fs::metadata(&file_path)?.permissions();
 
         permissions.set_mode(0o755);
+
+        set_permissions(file_path, permissions)?;
 
         Ok(())
     }
