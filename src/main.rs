@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use rusty_hooker::{git_hook::GitHook, hook_types::HookTypes, yml_parser};
+use rusty_hooker::{hook_types::HookTypes, yml_parser};
 
 #[derive(Parser)]
 #[command(name = "githook-manager")]
@@ -41,7 +41,6 @@ fn main() {
         Commands::ListRepos => println!("List repos"),
         Commands::ListHooks => {
             yml_parser::display_hooks();
-            ()
         }
         Commands::ApplyHook {
             hook_name,
@@ -51,10 +50,7 @@ fn main() {
         }
         Commands::Test => println!("Test"),
         Commands::Run { hook_name } => {
-            let hooks = match yml_parser::read_file() {
-                Ok(hooks) => hooks,
-                Err(_) => Vec::<GitHook>::new(),
-            };
+            let hooks = yml_parser::read_file().unwrap_or_default();
             for hook in hooks {
                 if hook.name == *hook_name {
                     hook.run().expect("Failed to run git hook");

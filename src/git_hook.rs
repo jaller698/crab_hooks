@@ -33,20 +33,14 @@ impl GitHook {
     pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         println!("Running {}", self.command.cmd);
         let mut cmd = Command::new(&self.command.cmd);
-        match &self.command.args {
-            Some(v) => {
-                cmd.arg(v);
-            }
-            None => (),
+        if let Some(v) = &self.command.args {
+            cmd.arg(v);
         };
-        match &self.command.directory {
-            Some(v) => {
-                cmd.current_dir(v);
-            }
-            None => (),
+        if let Some(v) = &self.command.directory {
+            cmd.current_dir(v);
         };
         cmd.spawn()
-            .expect(format!("Failed to execute {:?}", self.command.cmd).as_str())
+            .unwrap_or_else(|_| panic!("Failed to execute {:?}", self.command.cmd))
             .wait()?;
         Ok(())
     }
