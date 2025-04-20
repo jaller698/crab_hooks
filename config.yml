@@ -1,4 +1,4 @@
-- name:        "hejsa"
+- name:        "check"
   description: "Some long text"
   command:
     cmd: "cargo"
@@ -6,7 +6,7 @@
     directory: "./"
   glob_pattern: ["**/*.rs", "*.toml", "*.yml"]
 
-- name:        "foo"
+- name:        "clippy"
   command:
     cmd: "cargo"
     args: "clippy --all-targets --all-features -- -Dwarnings"
