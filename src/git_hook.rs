@@ -1,4 +1,4 @@
-use git2::{Repository, StatusOptions};
+use git2::{DiffOptions, Repository, StatusOptions};
 use globset::GlobBuilder;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -40,12 +40,15 @@ impl std::fmt::Display for GitHook {
 }
 
 impl GitHook {
-    fn find_changed_files(&self) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
+    fn find_changed_or_to_be_pushed_files(
+        &self,
+    ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
         let repo = Repository::discover(".")?;
         let workdir = repo
             .workdir()
             .ok_or_else(|| git2::Error::from_str("not a workdir"))?;
 
+        // 1) Gather unstaged + staged changes
         let mut opts = StatusOptions::new();
         opts.include_untracked(true)
             .recurse_untracked_dirs(true)
@@ -53,29 +56,57 @@ impl GitHook {
             .renames_head_to_index(true);
 
         let statuses = repo.statuses(Some(&mut opts))?;
-        let mut paths = Vec::new();
+        let mut paths: Vec<PathBuf> = statuses
+            .iter()
+            .filter_map(|e| {
+                let s = e.status();
+                let changed = s.is_index_new()
+                    || s.is_index_modified()
+                    || s.is_index_deleted()
+                    || s.is_wt_new()
+                    || s.is_wt_modified()
+                    || s.is_wt_deleted();
+                if changed {
+                    e.path().map(|p| workdir.join(p))
+                } else {
+                    None
+                }
+            })
+            .collect();
 
-        for entry in statuses.iter() {
-            let s = entry.status();
-            // staged = index changes; unstaged = working‑tree changes
-            let is_changed = s.is_index_new()
-                || s.is_index_modified()
-                || s.is_index_deleted()
-                || s.is_wt_new()
-                || s.is_wt_modified()
-                || s.is_wt_deleted();
+        // 2) Now diff upstream → HEAD to pick up committed‑but‑not‑pushed files
+        if let Ok(upstream_obj) = repo.revparse_single("@{u}") {
+            // peel to commits
+            let upstream_commit = upstream_obj.peel_to_commit()?;
+            let head_commit = repo.head()?.peel_to_commit()?;
 
-            if is_changed {
-                if let Some(p) = entry.path() {
+            let upstream_tree = upstream_commit.tree()?;
+            let head_tree = head_commit.tree()?;
+
+            let mut diff_opts = DiffOptions::new();
+            let diff = repo.diff_tree_to_tree(
+                Some(&upstream_tree),
+                Some(&head_tree),
+                Some(&mut diff_opts),
+            )?;
+
+            for delta in diff.deltas() {
+                // new_file() covers added/modified/deleted
+                if let Some(p) = delta.new_file().path() {
                     paths.push(workdir.join(p));
                 }
             }
         }
+        // else: no upstream configured → skip this part
+
+        // 3) Dedupe & return
+        paths.sort();
+        paths.dedup();
         Ok(paths)
     }
 
     fn check_files_match_glob(&self) -> bool {
-        let file_result = self.find_changed_files();
+        let file_result = self.find_changed_or_to_be_pushed_files();
         if let Ok(files) = file_result {
             for pattern in &self.glob_pattern {
                 if let Ok(glob) = GlobBuilder::new(pattern).literal_separator(true).build() {
