@@ -1,3 +1,5 @@
+use git2::{Repository, StatusOptions};
+use globset::{Glob, GlobBuilder, GlobSetBuilder};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, set_permissions},
@@ -38,7 +40,66 @@ impl std::fmt::Display for GitHook {
 }
 
 impl GitHook {
+    fn find_changed_files(&self) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
+        let repo = Repository::discover(".")?;
+        let workdir = repo
+            .workdir()
+            .ok_or_else(|| git2::Error::from_str("not a workdir"))?;
+
+        let mut opts = StatusOptions::new();
+        opts.include_untracked(true)
+            .recurse_untracked_dirs(true)
+            .include_ignored(false)
+            .renames_head_to_index(true);
+
+        let statuses = repo.statuses(Some(&mut opts))?;
+        let mut paths = Vec::new();
+
+        for entry in statuses.iter() {
+            let s = entry.status();
+            // staged = index changes; unstaged = working‑tree changes
+            let is_changed = s.is_index_new()
+                || s.is_index_modified()
+                || s.is_index_deleted()
+                || s.is_wt_new()
+                || s.is_wt_modified()
+                || s.is_wt_deleted();
+
+            if is_changed {
+                if let Some(p) = entry.path() {
+                    paths.push(workdir.join(p));
+                }
+            }
+        }
+        Ok(paths)
+    }
+
+    fn check_files_match_glob(&self) -> bool {
+        let file_result = self.find_changed_files();
+        if let Ok(files) = file_result {
+            for pattern in &self.glob_pattern {
+                println!("Checking pattern {}", pattern);
+                if let Ok(glob) = GlobBuilder::new(pattern).literal_separator(true).build() {
+                    let glob_matcher = glob.compile_matcher();
+                    for path in &files {
+                        let relative_path =
+                            path.strip_prefix(std::env::current_dir().unwrap()).unwrap();
+                        println!("Checking: {:?}", relative_path);
+                        if glob_matcher.is_match(relative_path) {
+                            return true;
+                        }
+                    }
+                };
+            }
+        };
+        false
+    }
+
     pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
+        if !self.check_files_match_glob() {
+            println!("Pattern does not match the glob provided, skipping this!");
+            return Ok(());
+        }
         println!("Running {}", self.command.cmd);
         let mut cmd = Command::new(&self.command.cmd);
         if let Some(v) = &self.command.args {

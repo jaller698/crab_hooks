@@ -1,11 +1,10 @@
-
 - name:        "hejsa"
   description: "Some long text"
   command:
     cmd: "cargo"
     args: "check"
     directory: "./"
-  glob_pattern: ["**.py", "*.json"]
+  glob_pattern: ["**.rs", "*.toml", "*.yml"]
 
 - name:        "foo"
   command:
