@@ -8,6 +8,7 @@
 
 - name:        "foo"
   command:
-    cmd: "./do-something.sh"
+    cmd: "cargo"
+    args: "clippy --all-targets --all-features -- -Dwarnings"
   glob_pattern: ["**/*.rs"]
 

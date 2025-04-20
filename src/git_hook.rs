@@ -130,10 +130,12 @@ impl GitHook {
             println!("Pattern does not match the glob provided, skipping this!");
             return Ok(());
         }
+
         println!("Running {}", self.command.cmd);
         let mut cmd = Command::new(&self.command.cmd);
         if let Some(v) = &self.command.args {
-            cmd.arg(v);
+            let args = v.split(" ");
+            cmd.args(args);
         };
         if let Some(v) = &self.command.directory {
             cmd.current_dir(v);
