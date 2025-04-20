@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{fs, io::Write, path::PathBuf, process::Command};
+use std::{fs, io::Write, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 
 use crate::hook_types::HookTypes;
 
@@ -66,7 +66,13 @@ impl GitHook {
         let mut hook_file = fs::File::create(&file_path)?;
         let exe_location = std::env::current_exe()?;
         let file_content = format!("{} run {}", exe_location.to_str().expect(""), self.name);
-        hook_file.write_all(file_content.as_bytes())?;
+        writeln!(hook_file, "#!/usr/bin/env sh")?;
+        writeln!(hook_file, "{}", file_content)?;
+        drop(hook_file);
+
+        let mut permissions = fs::metadata(&file_path)?.permissions();
+
+        permissions.set_mode(0o755);
 
         Ok(())
     }
