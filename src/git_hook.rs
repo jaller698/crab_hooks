@@ -1,5 +1,5 @@
 use git2::{Repository, StatusOptions};
-use globset::{Glob, GlobBuilder, GlobSetBuilder};
+use globset::GlobBuilder;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, set_permissions},
@@ -78,14 +78,13 @@ impl GitHook {
         let file_result = self.find_changed_files();
         if let Ok(files) = file_result {
             for pattern in &self.glob_pattern {
-                println!("Checking pattern {}", pattern);
                 if let Ok(glob) = GlobBuilder::new(pattern).literal_separator(true).build() {
                     let glob_matcher = glob.compile_matcher();
                     for path in &files {
                         let relative_path =
                             path.strip_prefix(std::env::current_dir().unwrap()).unwrap();
-                        println!("Checking: {:?}", relative_path);
                         if glob_matcher.is_match(relative_path) {
+                            println!("pattern {} matched {:?}", pattern, relative_path);
                             return true;
                         }
                     }

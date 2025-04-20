@@ -4,10 +4,10 @@
     cmd: "cargo"
     args: "check"
     directory: "./"
-  glob_pattern: ["**.rs", "*.toml", "*.yml"]
+  glob_pattern: ["**/*.rs", "*.toml", "*.yml"]
 
 - name:        "foo"
   command:
     cmd: "./do-something.sh"
-  glob_pattern: ["**.rs"]
+  glob_pattern: ["**/*.rs"]
 
