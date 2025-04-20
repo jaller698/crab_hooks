@@ -43,7 +43,7 @@ fn find_hook(name: &String) -> Result<GitHook, Box<dyn std::error::Error>> {
     Err("No such hook found, please add it to the config".into())
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     match &cli.command {
@@ -56,15 +56,15 @@ fn main() {
             hook_name,
             hook_type,
         } => {
-            find_hook(hook_name)
+            return find_hook(hook_name)
                 .expect("Failed to find the hook")
-                .apply_hook(hook_type)
-                .expect("Failed to apply hook");
+                .apply_hook(hook_type);
         }
         Commands::Test => println!("Test"),
         Commands::Run { hook_name } => {
-            let hook = find_hook(hook_name).expect("Faile to find hook");
-            hook.run().expect("Failed to run git hook");
+            let hook = find_hook(hook_name).expect("Failed to find hook");
+            return hook.run();
         }
     }
+    Ok(())
 }

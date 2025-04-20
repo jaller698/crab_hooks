@@ -47,10 +47,22 @@ impl GitHook {
         if let Some(v) = &self.command.directory {
             cmd.current_dir(v);
         };
-        cmd.spawn()
+        let status = cmd
+            .spawn()
             .unwrap_or_else(|_| panic!("Failed to execute {:?}", self.command.cmd))
             .wait()?;
-        Ok(())
+        if status.success() {
+            // exit code was zero
+            return Ok(());
+        } else {
+            // non‐zero or signal‐terminated
+            return match status.code() {
+                // exited with some code != 0
+                Some(code) => Err(format!("Command failed with status {}", code).into()),
+                // e.g. killed by signal on Unix
+                None => Err("Cmd terminated by signal".into()),
+            };
+        }
     }
 
     pub fn apply_hook(&self, hook_type: &HookTypes) -> Result<(), Box<dyn std::error::Error>> {
