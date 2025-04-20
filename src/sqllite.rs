@@ -1,6 +1,6 @@
 use sqlite::{Connection, State};
 
-use crate::{git_hook::GitHook, hook_types::HookTypes};
+use crate::hook_types::HookTypes;
 
 pub struct SqlLiteConfig {
     // path: String,
@@ -9,7 +9,7 @@ pub struct SqlLiteConfig {
 
 impl SqlLiteConfig {
     pub fn new(path: &str) -> Result<SqlLiteConfig, Box<dyn std::error::Error>> {
-        let connection = sqlite::open(&path)?;
+        let connection = sqlite::open(path)?;
         let config = SqlLiteConfig {
             //      path: path.to_string(),
             connection,
@@ -99,18 +99,18 @@ impl SqlLiteConfig {
         Ok(false)
     }
 
-    pub fn add_successful_run(&self, name: &String) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn add_successful_run(&self, name: &str) -> Result<(), Box<dyn std::error::Error>> {
         let query = "UPDATE hooks SET total_runs = total_runs + 1, succesful_runs = succesful_runs + 1 WHERE name = ?";
         let mut statement = self.connection.prepare(query)?;
-        statement.bind((1, name.as_str()))?;
+        statement.bind((1, name))?;
         statement.next()?;
         Ok(())
     }
 
-    pub fn add_failed_run(&self, name: &String) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn add_failed_run(&self, name: &str) -> Result<(), Box<dyn std::error::Error>> {
         let query = "UPDATE hooks SET total_runs = total_runs + 1 WHERE name = ?";
         let mut statement = self.connection.prepare(query)?;
-        statement.bind((1, name.as_str()))?;
+        statement.bind((1, name))?;
         statement.next()?;
         Ok(())
     }

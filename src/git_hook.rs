@@ -224,10 +224,7 @@ impl GitHook {
             permissions.set_mode(0o755);
             set_permissions(file_path, permissions)?;
         } else {
-            let mut hook_file = OpenOptions::new()
-                .write(true)
-                .append(true)
-                .open(file_path)?;
+            let mut hook_file = OpenOptions::new().append(true).open(file_path)?;
             writeln!(hook_file, "{}", file_content)?;
             drop(hook_file);
         }
