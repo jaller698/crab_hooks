@@ -9,11 +9,34 @@ jobs:
     withSubmodules: false
     condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
   - !CommandStep
+    name: generate cache key
+    runInContainer: true
+    image: rust:1.70-slim
+    interpreter: !DefaultInterpreter
+      commands: |
+        set -e
+        # MD5 of Cargo.lock → checksum file
+        md5sum Cargo.lock | cut -d ' ' -f1 > checksum
+    useTTY: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !SetupCacheStep
+    name: restore cargo cache
+    key: cargo-cache-@file:checksum@
+    paths:
+    - target
+    - /usr/local/cargo/registry
+    - /usr/local/cargo/git
+    uploadStrategy: UPLOAD_IF_NOT_HIT
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !CommandStep
     name: cargo test
     runInContainer: true
     image: rust:1.86-slim
     interpreter: !DefaultInterpreter
       commands: |
+      	apt update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+        apt install -y libssl-dev pkg-config
         cargo build --release
         cargo test
         cargo install cargo-tarpaulin
@@ -50,6 +73,26 @@ jobs:
     withSubmodules: false
     condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
   - !CommandStep
+    name: generate cache key
+    runInContainer: true
+    image: rust:1.70-slim
+    interpreter: !DefaultInterpreter
+      commands: |
+        set -e
+        # MD5 of Cargo.lock → checksum file
+        md5sum Cargo.lock | cut -d ' ' -f1 > checksum
+    useTTY: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !SetupCacheStep
+    name: restore cargo cache
+    key: cargo-cache-@file:checksum@
+    paths:
+    - target
+    - /usr/local/cargo/registry
+    - /usr/local/cargo/git
+    uploadStrategy: UPLOAD_IF_NOT_HIT
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !CommandStep
     name: clippy
     runInContainer: true
     image: rust:1.86-slim
@@ -81,6 +124,26 @@ jobs:
     cloneCredential: !DefaultCredential {}
     withLfs: false
     withSubmodules: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !CommandStep
+    name: generate cache key
+    runInContainer: true
+    image: rust:1.70-slim
+    interpreter: !DefaultInterpreter
+      commands: |
+        set -e
+        # MD5 of Cargo.lock → checksum file
+        md5sum Cargo.lock | cut -d ' ' -f1 > checksum
+    useTTY: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !SetupCacheStep
+    name: restore cargo cache
+    key: cargo-cache-@file:checksum@
+    paths:
+    - target
+    - /usr/local/cargo/registry
+    - /usr/local/cargo/git
+    uploadStrategy: UPLOAD_IF_NOT_HIT
     condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
   - !CommandStep
     name: audit
