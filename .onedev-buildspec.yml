@@ -1,197 +1,111 @@
 version: 39
 jobs:
-  - name: Cargo test
-    steps:
-      - !CheckoutStep
-        name: Checkout
-        cloneCredential: !DefaultCredential {}
-        withLfs: false
-        withSubmodules: false
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !CommandStep
-        name: Generate checksum
-        runInContainer: true
-        image: rust:1.70-slim
-        interpreter: !DefaultInterpreter
-          commands: |
-            set -e
-            md5sum Cargo.lock | cut -d ' ' -f1 > checksum
-        useTTY: false
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !CacheSetupStep
-        name: Restore cargo cache
-        key: cargo-cache-@file:checksum@
-        loadKeys:
-          - cargo-cache
-        paths:
-          - target
-          - /usr/local/cargo/registry
-          - /usr/local/cargo/git
-        uploadStrategy: upload-on-success
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !CommandStep
-        name: Build & Test
-        runInContainer: true
-        image: rust:1.70-slim
-        interpreter: !DefaultInterpreter
-          commands: |
-            set -e
-            rustup default stable
-            cargo fetch
-            cargo build --release
-            cargo test
-            cargo install cargo-tarpaulin
-            cargo tarpaulin --out Html --engine llvm
-        useTTY: true
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !PublishArtifactStep
-        name: Publish binaries
-        sourcePath: target/release
-        artifacts: '**'
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !PublishHtmlReportStep
-        name: Publish coverage report
-        reportName: Tests
-        filePatterns: tarpaulin-report.html
-        startPage: tarpaulin-report.html
-        condition: ALWAYS
-
-    triggers:
-      - !PullRequestUpdateTrigger {}
-    retryCondition: never
-    maxRetries: 3
-    retryDelay: 30
-    timeout: 14400
-    postBuildActions:
-      - !SendNotificationAction
-        condition: always
-        receivers: user(christian)
-
-  - name: Cargo clippy
-    jobDependencies:
-      - jobName: Cargo test
-        requireSuccessful: true
-        artifacts: '**'
-    steps:
-      - !CheckoutStep
-        name: Checkout
-        cloneCredential: !DefaultCredential {}
-        withLfs: false
-        withSubmodules: false
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !CommandStep
-        name: Generate checksum
-        runInContainer: true
-        image: rust:1.70-slim
-        interpreter: !DefaultInterpreter
-          commands: |
-            set -e
-            md5sum Cargo.lock | cut -d ' ' -f1 > checksum
-        useTTY: false
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !CacheSetupStep
-        name: Restore cargo cache
-        key: cargo-cache-@file:checksum@
-        loadKeys:
-          - cargo-cache
-        paths:
-          - target
-          - /usr/local/cargo/registry
-          - /usr/local/cargo/git
-        uploadStrategy: upload-on-success
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !CommandStep
-        name: Clippy
-        runInContainer: true
-        image: rust:1.70-slim
-        interpreter: !DefaultInterpreter
-          commands: |
-            set -e
-            rustup default stable
-            rustup component add clippy
-            cargo clippy --all-targets --all-features --message-format json > check-result.json
-        useTTY: true
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !PublishClippyReportStep
-        name: Publish clippy report
-        reportName: clippy report
-        filePatterns: check-result.json
-        failThreshold: MEDIUM
-        condition: ALWAYS
-
-    retryCondition: never
-    maxRetries: 3
-    retryDelay: 30
-    timeout: 14400
-
-  - name: Cargo audit
-    jobDependencies:
-      - jobName: Cargo clippy
-        requireSuccessful: true
-        artifacts: '**'
-    steps:
-      - !CheckoutStep
-        name: Checkout
-        cloneCredential: !DefaultCredential {}
-        withLfs: false
-        withSubmodules: false
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !CommandStep
-        name: Generate checksum
-        runInContainer: true
-        image: rust:1.70-slim
-        interpreter: !DefaultInterpreter
-          commands: |
-            set -e
-            md5sum Cargo.lock | cut -d ' ' -f1 > checksum
-        useTTY: false
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !CacheSetupStep
-        name: Restore cargo cache
-        key: cargo-cache-@file:checksum@
-        loadKeys:
-          - cargo-cache
-        paths:
-          - target
-          - /usr/local/cargo/registry
-          - /usr/local/cargo/git
-        uploadStrategy: upload-on-success
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !CommandStep
-        name: Audit
-        runInContainer: true
-        image: rust:1.70-slim
-        interpreter: !DefaultInterpreter
-          commands: |
-            set -e
-            rustup default stable
-            cargo install cargo-audit --locked
-            cargo audit -D warnings --json > audit.json
-        useTTY: true
-        condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-
-      - !PublishClippyReportStep
-        name: Publish audit report
-        reportName: audit report
-        filePatterns: audit.json
-        failThreshold: MEDIUM
-        condition: ALWAYS
-
-    triggers:
-      - !BranchUpdateTrigger {}
-    retryCondition: never
-    maxRetries: 3
-    retryDelay: 30
-    timeout: 14400
+- name: Cargo test
+  steps:
+  - !CheckoutStep
+    name: checkout
+    cloneCredential: !DefaultCredential {}
+    withLfs: false
+    withSubmodules: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !CommandStep
+    name: cargo test
+    runInContainer: true
+    image: rust:1.70-slim
+    interpreter: !DefaultInterpreter
+      commands: |
+        cargo build --release
+        cargo test
+        cargo install cargo-tarpaulin
+        cargo tarpaulin --out Html --engine llvm
+    useTTY: true
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !PublishArtifactStep
+    name: Publish
+    sourcePath: target/release
+    artifacts: '**'
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !PublishHtmlReportStep
+    name: Publish test report
+    reportName: Tests
+    filePatterns: tarpaulin-report.html
+    startPage: tarpaulin-report.html
+    condition: ALWAYS
+  triggers:
+  - !PullRequestUpdateTrigger {}
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
+  postBuildActions:
+  - !SendNotificationAction
+    condition: always
+    receivers: user(christian)
+- name: Cargo clippy
+  steps:
+  - !CheckoutStep
+    name: checkout
+    cloneCredential: !DefaultCredential {}
+    withLfs: false
+    withSubmodules: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !CommandStep
+    name: clippy
+    runInContainer: true
+    image: rust:1.70-slim
+    interpreter: !DefaultInterpreter
+      commands: |
+        rustup default stable
+        rustup component add clippy
+        cargo clippy --all-targets --all-features --message-format json>check-result.json
+    useTTY: true
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !PublishClippyReportStep
+    name: Publish clippy
+    reportName: clippy report
+    filePatterns: check-result.json
+    failThreshold: MEDIUM
+    condition: ALWAYS
+  jobDependencies:
+  - jobName: Cargo test
+    requireSuccessful: true
+    artifacts: '**'
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
+- name: Cargo audit
+  steps:
+  - !CheckoutStep
+    name: checkout
+    cloneCredential: !DefaultCredential {}
+    withLfs: false
+    withSubmodules: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !CommandStep
+    name: audit
+    runInContainer: true
+    image: rust:1.70-slim
+    interpreter: !DefaultInterpreter
+      commands: |
+        rustup default stable
+        cargo install cargo-audit --locked
+        cargo audit -D warnings --json > audit.json
+    useTTY: true
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  - !PublishClippyReportStep
+    name: Publish audit report
+    reportName: audit report
+    filePatterns: audit.json
+    failThreshold: MEDIUM
+    condition: ALWAYS
+  triggers:
+  - !BranchUpdateTrigger {}
+  jobDependencies:
+  - jobName: Cargo clippy
+    requireSuccessful: true
+    artifacts: '**'
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
