@@ -26,6 +26,11 @@ enum Commands {
         #[arg(required = true)]
         hook_type: HookTypes,
     },
+    RemoveHook {
+        hook_name: String,
+        #[arg(required = true)]
+        hook_type: HookTypes,
+    },
     /// Test if the config is valid
     Test,
 
@@ -55,6 +60,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             yml_parser::display_hooks();
         }
         Commands::ApplyHook {
+            hook_name,
+            hook_type,
+        } => {
+            return find_hook(hook_name)
+                .expect("Failed to find the hook")
+                .apply_hook(hook_type, &sql_config);
+        }
+        Commands::RemoveHook {
             hook_name,
             hook_type,
         } => {

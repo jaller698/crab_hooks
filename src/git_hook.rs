@@ -21,9 +21,9 @@ pub struct CommandConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GitHook {
     pub name: String,
-    command: CommandConfig,
-    glob_pattern: Vec<String>,
-    description: Option<String>,
+    pub command: CommandConfig,
+    pub glob_pattern: Vec<String>,
+    pub description: Option<String>,
 }
 
 impl std::fmt::Display for GitHook {
