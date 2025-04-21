@@ -8,34 +8,66 @@ jobs:
     withLfs: false
     withSubmodules: false
     condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+
+  # 1. Generate a cache key based on Cargo.lock
+  - !CommandStep
+    name: generate cache key
+    runInContainer: true
+    image: rust:1.70-slim
+    interpreter: !DefaultInterpreter
+      commands: |
+        set -e
+        # MD5 of Cargo.lock → checksum file
+        md5sum Cargo.lock | cut -d ' ' -f1 > checksum
+    useTTY: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+
+  # 2. Restore any existing cache using that key (or a load‑key prefix)
+  - !CacheSetupStep
+    name: restore cargo cache
+    key: cargo-cache-@file:checksum@
+    loadKeys:
+    - cargo-cache
+    paths:
+    - target
+    - /usr/local/cargo/registry
+    - /usr/local/cargo/git
+    uploadStrategy: upload-on-success
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+
+  # 3. Build, test, and collect coverage
   - !CommandStep
     name: cargo test
     runInContainer: true
-    image: 1dev/agent
+    image: rust:1.70-slim
     interpreter: !DefaultInterpreter
       commands: |
-        apt update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
-        apt install -y libssl-dev pkg-config rustup clang
+        set -e
+        # Ensure up‑to‑date toolchain
         rustup default stable
-        echo "done with APT"
+        # Populate registry/git caches, then build & test
+        cargo fetch
         cargo build --release
         cargo test
+        # Coverage
         cargo install cargo-tarpaulin
         cargo tarpaulin --out Html --engine llvm
     useTTY: true
     condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+
   - !PublishArtifactStep
-    name: Publish
+    name: publish binaries
     sourcePath: target/release
     artifacts: '**'
     condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+
   - !PublishHtmlReportStep
-    name: Publish test report
+    name: publish coverage report
     reportName: Tests
     filePatterns: tarpaulin-report.html
     startPage: tarpaulin-report.html
     condition: ALWAYS
+
   triggers:
   - !PullRequestUpdateTrigger {}
   retryCondition: never
@@ -46,76 +78,95 @@ jobs:
   - !SendNotificationAction
     condition: always
     receivers: user(christian)
+
 - name: Cargo clippy
-  steps:
-  - !CheckoutStep
-    name: checkout
-    cloneCredential: !DefaultCredential {}
-    withLfs: false
-    withSubmodules: false
-    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-  - !CommandStep
-    name: clippy
-    runInContainer: true
-    image: 1dev/agent
-    interpreter: !DefaultInterpreter
-      commands: |
-        apt update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
-        apt install -y libssl-dev pkg-config rustup clang
-        rustup default stable
-        rustup component add clippy
-        cargo clippy --all-targets --all-features --message-format json>check-result.json
-    useTTY: true
-    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-  - !PublishClippyReportStep
-    name: Publish clippy
-    reportName: clippy report
-    filePatterns: check-result.json
-    failThreshold: MEDIUM
-    condition: ALWAYS
   jobDependencies:
   - jobName: Cargo test
     requireSuccessful: true
     artifacts: '**'
+  steps:
+  - !CheckoutStep …  # same as above
+
+  # restore the same cache so clippy reuses compilation
+  - !CommandStep
+    name: generate cache key
+    …  # identical to above
+  - !CacheSetupStep
+    name: restore cargo cache
+    key: cargo-cache-@file:checksum@
+    loadKeys:
+    - cargo-cache
+    paths:
+    - target
+    - /usr/local/cargo/registry
+    - /usr/local/cargo/git
+    uploadStrategy: upload-on-success
+
+  - !CommandStep
+    name: clippy
+    runInContainer: true
+    image: rust:1.70-slim
+    interpreter: !DefaultInterpreter
+      commands: |
+        set -e
+        rustup default stable
+        rustup component add clippy
+        cargo clippy --all-targets --all-features --message-format json > check-result.json
+    useTTY: true
+
+  - !PublishClippyReportStep
+    name: publish clippy report
+    reportName: clippy report
+    filePatterns: check-result.json
+    failThreshold: MEDIUM
+
   retryCondition: never
   maxRetries: 3
   retryDelay: 30
   timeout: 14400
+
 - name: Cargo audit
-  steps:
-  - !CheckoutStep
-    name: checkout
-    cloneCredential: !DefaultCredential {}
-    withLfs: false
-    withSubmodules: false
-    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-  - !CommandStep
-    name: audit
-    runInContainer: true
-    image: 1dev/agent
-    interpreter: !DefaultInterpreter
-      commands: |
-        apt update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
-        apt install -y libssl-dev pkg-config rustup clang
-        rustup default stable
-        cargo install cargo-audit --locked
-        cargo audit -D warnings --json > audit.json
-    useTTY: true
-    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
-  - !PublishClippyReportStep
-    name: Publish audit report
-    reportName: audit report
-    filePatterns: audit.json
-    failThreshold: MEDIUM
-    condition: ALWAYS
-  triggers:
-  - !BranchUpdateTrigger {}
   jobDependencies:
   - jobName: Cargo clippy
     requireSuccessful: true
     artifacts: '**'
+  steps:
+  - !CheckoutStep …  # same as above
+
+  - !CommandStep
+    name: generate cache key
+    …  # identical to above
+  - !CacheSetupStep
+    name: restore cargo cache
+    key: cargo-cache-@file:checksum@
+    loadKeys:
+    - cargo-cache
+    paths:
+    - target
+    - /usr/local/cargo/registry
+    - /usr/local/cargo/git
+    uploadStrategy: upload-on-success
+
+  - !CommandStep
+    name: audit
+    runInContainer: true
+    image: rust:1.70-slim
+    interpreter: !DefaultInterpreter
+      commands: |
+        set -e
+        rustup default stable
+        cargo install cargo-audit --locked
+        cargo audit -D warnings --json > audit.json
+    useTTY: true
+
+  - !PublishClippyReportStep
+    name: publish audit report
+    reportName: audit report
+    filePatterns: audit.json
+    failThreshold: MEDIUM
+
+  triggers:
+  - !BranchUpdateTrigger {}
   retryCondition: never
   maxRetries: 3
   retryDelay: 30
