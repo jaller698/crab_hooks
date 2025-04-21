@@ -11,7 +11,7 @@ jobs:
   - !CommandStep
     name: cargo test
     runInContainer: true
-    image: rust:1.80-slim
+    image: rust:1.86-slim
     interpreter: !DefaultInterpreter
       commands: |
         cargo build --release
@@ -52,7 +52,7 @@ jobs:
   - !CommandStep
     name: clippy
     runInContainer: true
-    image: rust:1.80-slim
+    image: rust:1.86-slim
     interpreter: !DefaultInterpreter
       commands: |
         rustup default stable
@@ -85,7 +85,7 @@ jobs:
   - !CommandStep
     name: audit
     runInContainer: true
-    image: rust:1.80-slim
+    image: rust:1.86-slim
     interpreter: !DefaultInterpreter
       commands: |
         rustup default stable
