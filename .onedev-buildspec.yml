@@ -34,7 +34,7 @@ jobs:
     image: rust:1.86-slim
     interpreter: !DefaultInterpreter
       commands: |
-      	apt update
+        apt update
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
         apt install -y libssl-dev pkg-config
         cargo build --release
