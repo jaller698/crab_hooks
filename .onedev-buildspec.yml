@@ -98,6 +98,9 @@ jobs:
     image: rust:1.86-slim
     interpreter: !DefaultInterpreter
       commands: |
+        apt update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+        apt install -y libssl-dev pkg-config
         rustup default stable
         rustup component add clippy
         cargo clippy --all-targets --all-features --message-format json>check-result.json
@@ -151,6 +154,9 @@ jobs:
     image: rust:1.86-slim
     interpreter: !DefaultInterpreter
       commands: |
+        apt update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+        apt install -y libssl-dev pkg-config
         rustup default stable
         cargo install cargo-audit --locked
         cargo audit -D warnings --json > audit.json
