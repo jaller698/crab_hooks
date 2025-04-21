@@ -1,4 +1,4 @@
-use rusty_hooker::hook_types::HookTypes;
+use crab_hooks::hook_types::HookTypes;
 use std::str::FromStr;
 
 #[test]

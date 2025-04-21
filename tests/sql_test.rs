@@ -1,8 +1,8 @@
 // Integration tests for SqlLiteConfig.
 // Ensure your `SqlLiteConfig` struct exposes `connection` or provides a getter for stats.
 // Replace `your_crate` with the name in Cargo.toml under `[package].name`.
-use rusty_hooker::hook_types::HookTypes;
-use rusty_hooker::sqllite::SqlLiteConfig;
+use crab_hooks::hook_types::HookTypes;
+use crab_hooks::sqllite::SqlLiteConfig;
 
 #[test]
 fn test_add_and_check_hook() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use rusty_hooker::{git_hook::GitHook, hook_types::HookTypes, sqllite, yml_parser};
+use crab_hooks::{git_hook::GitHook, hook_types::HookTypes, sqllite, yml_parser};
 
 #[derive(Parser)]
 #[command(name = "githook-manager")]
