@@ -1,10 +1,22 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
 use crab_hooks::{git_hook::GitHook, hook_types::HookTypes, sqllite, yml_parser};
 
 #[derive(Parser)]
 #[command(name = "githook-manager")]
 #[command(about = "Manage and reuse Git hooks across repositories", long_about = None)]
+/// Manage and reuse Git hooks across repositories
 struct Cli {
+    #[arg(long, global = true)]
+    config_file: Option<PathBuf>,
+
+    #[arg(long, global = true)]
+    force: bool,
+
+    #[arg(long = "no-test", global = true)]
+    no_test: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -50,6 +62,12 @@ fn find_hook(name: &String) -> Result<GitHook, Box<dyn std::error::Error>> {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
+
+    let config_file = cli.config_file.unwrap_or_else(|| {
+        let mut p = home::home_dir().expect("Could not find HOME directory");
+        p.push(".config/crabs_hooks/config.yml");
+        p
+    });
 
     let sql_config = sqllite::SqlLiteConfig::new("mydb.db")?;
 
