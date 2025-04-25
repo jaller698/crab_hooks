@@ -54,8 +54,8 @@ enum Commands {
     Run { hook_name: String },
 }
 
-fn find_hook(name: &String) -> Result<GitHook, Box<dyn std::error::Error>> {
-    let hooks = yml_parser::read_file().unwrap_or_default();
+fn find_hook(config_file: PathBuf, name: &String) -> Result<GitHook, Box<dyn std::error::Error>> {
+    let hooks = yml_parser::read_file(config_file).unwrap_or_default();
     for hook in hooks {
         if hook.name == *name {
             return Ok(hook);
@@ -72,20 +72,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         p.push(".config/crabs_hooks/config.yml");
         p
     });
-
-    let sql_config = sqllite::SqlLiteConfig::new("mydb.db")?;
+    let sql_config = if let Some(sql_db_path) = config_file.parent() {
+        sqllite::SqlLiteConfig::new(sql_db_path.to_str().unwrap())?
+    } else {
+        sqllite::SqlLiteConfig::new("mydb.db")?
+    };
 
     match &cli.command {
         // Commands::Scan { dir } => println!("Scan"),
         Commands::ListRepos => println!("List repos"),
         Commands::ListHooks => {
-            yml_parser::display_hooks();
+            yml_parser::display_hooks(config_file);
         }
         Commands::ApplyHook {
             hook_name,
             hook_type,
         } => {
-            return find_hook(hook_name)
+            return find_hook(config_file, hook_name)
                 .expect("Failed to find the hook")
                 .apply_hook(hook_type, &sql_config);
         }
@@ -93,18 +96,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             hook_name,
             hook_type,
         } => {
-            return find_hook(hook_name)
+            return find_hook(config_file, hook_name)
                 .expect("Failed to find the hook")
                 .remove_hook(hook_type, &sql_config);
         }
         Commands::DeleteHook { hook_name } => {
-            return find_hook(hook_name)
+            return find_hook(config_file.clone(), hook_name)
                 .expect("Failed to find the git hook to be deleted")
                 .delete_hook(&sql_config, config_file);
         }
         Commands::Test => println!("Test"),
         Commands::Run { hook_name } => {
-            let hook = find_hook(hook_name).expect("Failed to find hook");
+            let hook = find_hook(config_file, hook_name).expect("Failed to find hook");
             return hook.run(&sql_config);
         }
     }
