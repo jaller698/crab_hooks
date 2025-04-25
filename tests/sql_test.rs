@@ -25,17 +25,17 @@ fn test_repo_hook_management() -> Result<(), Box<dyn std::error::Error>> {
     let hook_type = HookTypes::PreCommit;
 
     // No hooks known initially
-    assert!(!config.check_if_new_hook_is_known(repo, &hook_type)?);
+    assert!(!config.check_if_hook_is_known(repo, &hook_type)?);
 
     // Add hook and link to repo
     config.add_hook("hook1")?;
     config.add_hook_to_repo("hook1", repo, &hook_type)?;
-    assert!(config.check_if_new_hook_is_known(repo, &hook_type)?);
+    assert!(config.check_if_hook_is_known(repo, &hook_type)?);
 
     // Name matching
-    assert!(config.check_if_new_hook_is_same(repo, &hook_type, "hook1")?);
+    assert!(config.check_if_hook_is_same(repo, &hook_type, "hook1")?);
     // Different name returns false
-    assert!(!config.check_if_new_hook_is_same(repo, &hook_type, "hook2")?);
+    assert!(!config.check_if_hook_is_same(repo, &hook_type, "hook2")?);
     Ok(())
 }
 

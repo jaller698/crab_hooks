@@ -3,7 +3,7 @@ use globset::GlobBuilder;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, set_permissions, OpenOptions},
-    io::Write,
+    io::{BufRead, BufReader, Write},
     os::unix::fs::PermissionsExt,
     path::PathBuf,
     process::Command,
@@ -178,8 +178,8 @@ impl GitHook {
         let mut already_managed = false;
 
         let file_path = format!("./.git/hooks/{}", hook_type);
-        match sql_config.check_if_new_hook_is_known(&cd, hook_type) {
-            Ok(true) => match sql_config.check_if_new_hook_is_same(&cd, hook_type, &self.name) {
+        match sql_config.check_if_hook_is_known(&cd, hook_type) {
+            Ok(true) => match sql_config.check_if_hook_is_same(&cd, hook_type, &self.name) {
                 Ok(false) => {
                     println!("There is already a existing managed git hook, will try to truncate exisiting config");
                     already_managed = true;
@@ -231,6 +231,71 @@ impl GitHook {
 
         sql_config.add_hook(&self.name)?;
         sql_config.add_hook_to_repo(&self.name, &cd, hook_type)?;
+
+        Ok(())
+    }
+
+    pub fn remove_hook(
+        self,
+        hook_type: &HookTypes,
+        sql_config: &SqlLiteConfig,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // find current directory
+        // Find the current directory and hooktype match in sql config
+        // Remove that entry from the hook file and sql
+        let cd = std::env::current_dir()?;
+        let cd_str = cd.into_os_string().into_string().unwrap_err();
+        match sql_config.check_if_hook_is_same(
+            cd_str.to_str().unwrap(),
+            hook_type,
+            self.name.as_str(),
+        ) {
+            Ok(true) => (),
+            _ => return Err("Trying to remove unknown hook, aborting!".into()),
+        }
+
+        // Remove the execution from the hook
+        let file_path = format!("./git/hooks/{}", hook_type);
+        let file = fs::File::open(&file_path)?;
+        let reader = BufReader::new(file);
+
+        let lines: Vec<String> = reader
+            .lines()
+            .map_while(Result::ok)
+            .filter(|line| -> bool { !line.contains(self.name.as_str()) })
+            .collect();
+
+        let only_shebang = lines.len() == 1 && lines[0].starts_with("#!");
+        let is_empty = lines.is_empty();
+
+        if is_empty || only_shebang {
+            fs::remove_file(file_path)?;
+        } else {
+            let mut file = fs::File::create(&file_path)?;
+            for line in lines {
+                writeln!(file, "{}", line)?;
+            }
+        }
+
+        // Remove the hook from sqllite
+        sql_config.remove_hook(cd_str.to_str().unwrap(), hook_type, self.name.as_str())
+    }
+
+    pub fn delete_hook(
+        self,
+        sql_config: &SqlLiteConfig,
+        config_file: PathBuf,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // First check the hook is not used by any
+        if matches!(sql_config.check_if_hook_is_used(&self.name), Ok(true)) {
+            return Err("The hook is in use; please remove those first.".into());
+        }
+        // Then remove from config.yml
+        let f = std::fs::File::open(&config_file)?;
+        let mut hooks: Vec<GitHook> = serde_yaml::from_reader(f)?;
+        hooks.retain(|h| h.name != self.name);
+        let yaml_str = serde_yaml::to_string(&hooks)?;
+        fs::write(&config_file, yaml_str)?;
 
         Ok(())
     }

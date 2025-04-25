@@ -63,7 +63,7 @@ impl SqlLiteConfig {
         Ok(())
     }
 
-    pub fn check_if_new_hook_is_known(
+    pub fn check_if_hook_is_known(
         &self,
         repo: &str,
         hook_type: &HookTypes,
@@ -80,7 +80,7 @@ impl SqlLiteConfig {
         Ok(false)
     }
 
-    pub fn check_if_new_hook_is_same(
+    pub fn check_if_hook_is_same(
         &self,
         repo: &str,
         hook_type: &HookTypes,
@@ -91,6 +91,37 @@ impl SqlLiteConfig {
         statement.bind((1, repo))?;
         statement.bind((2, hook_type.to_string().as_str()))?;
         statement.bind((3, name))?;
+        if let Ok(state) = statement.next() {
+            if state == State::Row {
+                return Ok(true);
+            }
+        };
+        Ok(false)
+    }
+
+    pub fn remove_hook(
+        &self,
+        repo: &str,
+        hook_type: &HookTypes,
+        name: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let query = "DELETE FROM repo_hooks WHERE repo = ? AND type = ? AND name = ?";
+        let mut statement = self.connection.prepare(query)?;
+        statement.bind((1, repo))?;
+        statement.bind((2, hook_type.to_string().as_str()))?;
+        statement.bind((3, name))?;
+        if let Ok(state) = statement.next() {
+            if state == State::Row {
+                return Ok(());
+            }
+        };
+        Ok(())
+    }
+
+    pub fn check_if_hook_is_used(&self, name: &str) -> Result<bool, Box<dyn std::error::Error>> {
+        let query = "SELECT * FROM repo_hooks WHERE name = ?";
+        let mut statement = self.connection.prepare(query)?;
+        statement.bind((1, name))?;
         if let Ok(state) = statement.next() {
             if state == State::Row {
                 return Ok(true);
