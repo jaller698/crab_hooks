@@ -73,6 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         p
     });
     let sql_config = if let Some(sql_db_path) = config_file.parent() {
+        let sql_db_path = sql_db_path.join("hooks.db");
         sqllite::SqlLiteConfig::new(sql_db_path.to_str().unwrap())?
     } else {
         sqllite::SqlLiteConfig::new("mydb.db")?

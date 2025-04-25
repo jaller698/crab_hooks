@@ -244,18 +244,14 @@ impl GitHook {
         // Find the current directory and hooktype match in sql config
         // Remove that entry from the hook file and sql
         let cd = std::env::current_dir()?;
-        let cd_str = cd.into_os_string().into_string().unwrap_err();
-        match sql_config.check_if_hook_is_same(
-            cd_str.to_str().unwrap(),
-            hook_type,
-            self.name.as_str(),
-        ) {
+        let cd_str = cd.into_os_string().into_string().unwrap();
+        match sql_config.check_if_hook_is_same(cd_str.as_str(), hook_type, self.name.as_str()) {
             Ok(true) => (),
             _ => return Err("Trying to remove unknown hook, aborting!".into()),
         }
 
         // Remove the execution from the hook
-        let file_path = format!("./git/hooks/{}", hook_type);
+        let file_path = format!("./.git/hooks/{}", hook_type);
         let file = fs::File::open(&file_path)?;
         let reader = BufReader::new(file);
 
@@ -278,7 +274,7 @@ impl GitHook {
         }
 
         // Remove the hook from sqllite
-        sql_config.remove_hook(cd_str.to_str().unwrap(), hook_type, self.name.as_str())
+        sql_config.remove_hook(cd_str.as_str(), hook_type, self.name.as_str())
     }
 
     pub fn delete_hook(
