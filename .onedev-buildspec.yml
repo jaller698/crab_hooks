@@ -186,6 +186,8 @@ jobs:
     passwordSecret: access-token
     force: false
     condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  triggers:
+  - !BranchUpdateTrigger {}
   jobDependencies:
   - jobName: Cargo audit
     requireSuccessful: true
