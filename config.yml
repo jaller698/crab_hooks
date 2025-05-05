@@ -11,4 +11,7 @@
     cmd: "cargo"
     args: "clippy --all-targets --all-features -- -Dwarnings"
   glob_pattern: ["**/*.rs"]
-
+- name: "del_test"
+  command:
+    cmd: "test"
+  glob_pattern: ["**"]
