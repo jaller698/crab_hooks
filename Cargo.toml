@@ -2,6 +2,9 @@
 name = "crab-hooks"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/jaller698/crab_hooks"
+license = "GPL-3.0-or-later"
+description = "A CLI program for managing git hooks"
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
