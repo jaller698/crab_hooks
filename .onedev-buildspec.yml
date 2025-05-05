@@ -178,3 +178,19 @@ jobs:
   maxRetries: 3
   retryDelay: 30
   timeout: 14400
+- name: Publish
+  steps:
+  - !PushRepository
+    name: Github
+    remoteUrl: https://github.com/jaller698/crab_hooks
+    passwordSecret: access-token
+    force: false
+    condition: ALL_PREVIOUS_STEPS_WERE_SUCCESSFUL
+  jobDependencies:
+  - jobName: Cargo audit
+    requireSuccessful: true
+    artifacts: '**'
+  retryCondition: never
+  maxRetries: 3
+  retryDelay: 30
+  timeout: 14400
