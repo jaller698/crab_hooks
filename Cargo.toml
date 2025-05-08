@@ -9,6 +9,7 @@ description = "A CLI program for managing git hooks"
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
 git2 = "0.20.1"
+glob = "0.3.2"
 globset = "0.4.16"
 home = "0.5.11"
 serde = { version = "1.0", features = ["derive"] }
@@ -16,6 +17,7 @@ serde_yaml = "0.9"
 sqlite = "0.37.0"
 strum = "0.27.1"
 strum_macros = "0.27.1"
+which = "7.0.3"
 
 [dev-dependencies]
 tempfile = "3"

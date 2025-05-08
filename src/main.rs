@@ -1,7 +1,12 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use crab_hooks::{git_hook::GitHook, hook_types::HookTypes, sqllite, yml_parser};
+use crab_hooks::{
+    git_hook::GitHook,
+    hook_types::HookTypes,
+    sqllite,
+    yml_parser::{self, test_config},
+};
 
 #[derive(Parser)]
 #[command(name = "githook-manager")]
@@ -106,7 +111,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .expect("Failed to find the git hook to be deleted")
                 .delete_hook(&sql_config, config_file);
         }
-        Commands::Test => println!("Test"),
+        Commands::Test => match test_config(config_file) {
+            Ok(_) => {
+                println!("Config is good to go!");
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        },
         Commands::Run { hook_name } => {
             let hook = find_hook(config_file, hook_name).expect("Failed to find hook");
             return hook.run(&sql_config);
